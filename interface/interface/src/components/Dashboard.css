@@ -1,0 +1,126 @@
+.dashboard-container {
+  display: flex;
+  font-family: Arial, sans-serif;
+}
+
+/* Sidebar styling */
+.sidebar {
+  width: 220px;
+  background-color: #1f2937;
+  color: white;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.sidebar h2 {
+  margin-bottom: 30px;
+  font-size: 22px;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+}
+
+.sidebar li {
+  margin-bottom: 15px;
+  cursor: pointer;
+}
+
+/* Main panel */
+.main-panel {
+  flex: 1;
+  padding: 20px;
+  background-color: #f8fafc;
+}
+
+.top-cards {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.card {
+  flex: 1;
+  padding: 15px;
+  border-radius: 8px;
+  color: white;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.card h3 {
+  margin: 0;
+}
+
+.card span {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.green { background-color: #22c55e; }
+.purple { background-color: #a855f7; }
+.blue { background-color: #3b82f6; }
+.yellow { background-color: #facc15; color: black; }
+
+.middle-section {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.graph-placeholder, .recent-incidents {
+  flex: 1;
+  background-color: white;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.fake-graph {
+  height: 100px;
+  background: repeating-linear-gradient(
+    to right,
+    #cbd5e1,
+    #cbd5e1 10px,
+    #f1f5f9 10px,
+    #f1f5f9 20px
+  );
+  margin-top: 10px;
+}
+
+.badge {
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  margin-left: 8px;
+  color: white;
+}
+
+.red { background-color: #ef4444; }
+.yellow { background-color: #facc15; color: black; }
+.dark-red { background-color: #991b1b; }
+
+.bottom-buttons {
+  display: flex;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.secure-btn {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  color: white;
+}
+
+.secure-btn.blue {
+  background-color: #3b82f6;
+}
+
+.secure-btn.yellow {
+  background-color: #facc15;
+  color: black;
+}
