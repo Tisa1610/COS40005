@@ -155,13 +155,3 @@ You should see alerts in both terminals.
 
 ---
 
-## 🧠 Credits
-
-* FastAPI by @tiangolo
-* Watchdog by @gorakhargosh
-* PSUtil by @giampaolo
-* UVicorn ASGI server
-
----
-
-Let me know if you need sample SOAR responses, database integration, or a security dashboard next ✨
