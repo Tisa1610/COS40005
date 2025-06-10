@@ -1,0 +1,3 @@
+This is a SAFE test file for ransomware detection.  
+If this content changes unexpectedly, trigger an alert.  
+Original checksum: 3a7bd3e2360a3d29eea436fcfb7e44c735d117c7  
