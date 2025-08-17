@@ -12,6 +12,16 @@ import pywintypes          # NEW: needed to catch specific win32 errors
 import pythoncom           # NEW: for COM init in WMI thread
 import wmi
 
+# Import SOAR/response helpers.  These live alongside this file and provide
+# declarative playbook loading and execution functionality.  See
+# ``response.py`` for details.
+from response import (
+    load_playbooks,
+    match_playbooks,
+    execute_actions,
+    default_notify_callback,
+)
+
 def rpath(rel: str) -> str:
     """
     Resolve a path that works both for normal Python and a PyInstaller-frozen EXE.
@@ -23,6 +33,13 @@ def rpath(rel: str) -> str:
 # --- Load config next to agent.py / agent.exe (bundled by --add-data) ---
 CFG = yaml.safe_load(Path(rpath("config.yaml")).read_text())
 HMAC_KEY = os.environ.get(CFG["security"]["hmac_key_env"], "dev-change-me").encode()
+
+# Load response playbooks once at startup.  Playbooks live under the
+# ``playbooks`` directory next to ``agent.py`` and are read using
+# ``rpath`` so that bundling with PyInstaller works correctly.  If the
+# directory is missing or empty, the returned list will be empty and no
+# automated responses will fire.
+PLAYBOOKS = load_playbooks(rpath("playbooks"))
 
 def iso_now():
     return datetime.utcnow().replace(tzinfo=timezone.utc).isoformat()
@@ -112,6 +129,44 @@ class Burst:
             self.c+=1; return self.c
 
 BURST = Burst()
+
+# ---------- resource monitor (CPU/Disk) ----------
+def monitor_resources():
+    """Periodically sample process CPU and disk write usage.
+
+    This function inspects all running processes and emits resource
+    events when a process exceeds the configured CPU or I/O thresholds.
+    Thresholds are defined in the ``agent`` section of ``config.yaml``.
+    """
+    cpu_thr = CFG["agent"].get("cpu_usage_threshold", 80)
+    io_thr = CFG["agent"].get("io_write_threshold_bytes", 50 * 1024 * 1024)
+    # Prime the CPU percentage counters to obtain meaningful values on the next call
+    for proc in psutil.process_iter():
+        try:
+            proc.cpu_percent(interval=None)
+        except Exception:
+            continue
+    while not STOP.is_set():
+        for proc in psutil.process_iter(['pid','name','cpu_percent','io_counters']):
+            try:
+                cpu = proc.cpu_percent(interval=None)
+                if cpu >= cpu_thr:
+                    EVENTS.put(ev_base("resource", "high_cpu", {
+                        "pid": proc.info['pid'],
+                        "name": proc.info.get('name', ''),
+                        "cpu": cpu
+                    }, 2))
+                io = proc.info.get('io_counters')
+                if io and hasattr(io, 'write_bytes') and io.write_bytes >= io_thr:
+                    EVENTS.put(ev_base("resource", "high_disk_write", {
+                        "pid": proc.info['pid'],
+                        "name": proc.info.get('name', ''),
+                        "bytes": io.write_bytes
+                    }, 2))
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                continue
+        # Sleep for a short interval before sampling again
+        time.sleep(5)
 
 class FSHandler(FileSystemEventHandler):
     def on_created(self, e): self._emit(e, "create")
@@ -205,11 +260,33 @@ def dispatcher():
         try:
             evt = EVENTS.get(timeout=1)
             score = 0
-            if evt["type"]=="file" and evt["data"].get("rate",0) >= CFG["agent"]["file_burst_threshold_per_sec"]: score += 40
-            if evt["type"]=="process" and evt["data"].get("name") in ["powershell.exe","wscript.exe","cscript.exe","mshta.exe"]: score += 30
-            if evt["subtype"] in ["service_install","vss_delete"]: score += 50
+            if evt["type"] == "file" and evt["data"].get("rate", 0) >= CFG["agent"]["file_burst_threshold_per_sec"]:
+                score += 40
+            if evt["type"] == "process" and evt["data"].get("name") in [
+                "powershell.exe",
+                "wscript.exe",
+                "cscript.exe",
+                "mshta.exe",
+            ]:
+                score += 30
+            if evt["subtype"] in ["service_install", "vss_delete"]:
+                score += 50
+            # Resource events contribute moderately to the score
+            if evt["type"] == "resource":
+                # high CPU/disk write events are considered early indicators of encryption or abuse
+                score += 20
             evt["signals"]["score"] = min(100, score)
             if score >= 70: evt["severity"] = max(evt["severity"], 3)
+            # Execute SOAR playbooks when applicable.  Any exceptions raised
+            # during playbook matching or execution are swallowed to prevent
+            # disruption of the dispatcher loop.
+            try:
+                triggered = match_playbooks(PLAYBOOKS, evt)
+                if triggered:
+                    execute_actions(evt, triggered, notify_callback=default_notify_callback)
+            except Exception:
+                pass
+
             try:
                 publish(evt)
             except Exception:
@@ -222,8 +299,9 @@ def main():
     obs = start_file_watch()
     threads = [
         threading.Thread(target=watch_processes, daemon=True),
-        threading.Thread(target=tail_channel, args=("Microsoft-Windows-Sysmon/Operational","*"), daemon=True),
-        threading.Thread(target=tail_channel, args=("Microsoft-Windows-PowerShell/Operational","*"), daemon=True),
+        threading.Thread(target=tail_channel, args=("Microsoft-Windows-Sysmon/Operational", "*"), daemon=True),
+        threading.Thread(target=tail_channel, args=("Microsoft-Windows-PowerShell/Operational", "*"), daemon=True),
+        threading.Thread(target=monitor_resources, daemon=True),
         threading.Thread(target=dispatcher, daemon=True),
     ]
     for t in threads: t.start()

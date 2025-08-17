@@ -6,6 +6,10 @@ agent:
     - "C:\\ProgramData"
   ext_watchlist: [".lockbit", ".conti", ".encrypted", ".ryk", ".lkr"]
   file_burst_threshold_per_sec: 120
+  # CPU usage percentage threshold above which a process will be flagged
+  cpu_usage_threshold: 80
+  # Disk write threshold (bytes/sec) above which a process will be flagged
+  io_write_threshold_bytes: 52428800  # 50 MB/s
 
 outbound:
   mode: "https"   # we're using the FastAPI collector (app.py), no MQTT

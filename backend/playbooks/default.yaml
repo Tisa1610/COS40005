@@ -1,0 +1,33 @@
+# Default SOAR playbook definitions
+
+# Each playbook within this file defines triggers and actions.  Triggers
+# include a minimum severity and optional type/subtype filters.  Actions
+# specify how the agent should respond when the playbook is matched.
+
+playbooks:
+  - name: "high_severity_containment"
+    description: |
+      When an event reaches severity level 3 or higher this playbook will
+      attempt to contain the threat by killing the offending process (if
+      present) and isolating the host from the network.  It will also
+      notify via the built‑in notification callback.
+    triggers:
+      min_severity: 3
+    actions:
+      - type: kill_process
+      - type: isolate_network
+      - type: notify
+
+  - name: "suspicious_process_start"
+    description: |
+      Respond specifically to the launch of known scripting or LOLBIN
+      processes (powershell, wscript, cscript, mshta) regardless of the
+      severity assigned by the dispatcher.  The process will be terminated
+      immediately and the host isolated.
+    triggers:
+      type: process
+      min_severity: 2
+    actions:
+      - type: kill_process
+      - type: isolate_network
+      - type: notify
