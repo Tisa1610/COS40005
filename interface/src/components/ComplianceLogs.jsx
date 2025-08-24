@@ -26,20 +26,7 @@ function ComplianceLogs() {
 
   return (
     <div className="compliance-page">
-      <aside className="sidebar">
-        <h2 className="logo">SecureScape</h2>
-        <nav>
-          <ul>
-            <li>Home</li>
-            <li>Devices</li>
-            <li>Incidents</li>
-            <li>Backups</li>
-            <li className="active">Reports</li>
-            <li>Settings</li>
-            <li>Logout</li>
-          </ul>
-        </nav>
-      </aside>
+     
 
       <main className="compliance-main">
         <h1 className="compliance-title">Compliance</h1>
