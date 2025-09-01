@@ -124,3 +124,9 @@
   background-color: #facc15;
   color: black;
 }
+
+/* UI adjustment for integration readiness */
+body {
+  background-color: #ffffff; 
+}
+
