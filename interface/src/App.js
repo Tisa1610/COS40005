@@ -5,6 +5,7 @@ import Dashboard from './components/Dashboard';
 import DataCollection from './components/DataCollection';
 import ComplianceLogs from './components/ComplianceLogs';
 
+// Placeholder: Prepared for backend integration (8010 endpoints)
 function App() {
   return (
     <Router>
