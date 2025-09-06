@@ -34,6 +34,14 @@ from typing import Any, Dict, List
 
 import psutil
 import yaml
+import os, shutil, time, json, hashlib, stat, subprocess
+from datetime import datetime, timezone
+from pathlib import Path
+
+BASE_TEST_DIR  = Path(r"C:\Users\sakindu\Downloads\testing")
+QUARANTINE_DIR = BASE_TEST_DIR / "RansomwareQuarantine"
+
+
 
 
 def load_playbooks(playbook_dir: str) -> List[Dict[str, Any]]:
@@ -144,7 +152,15 @@ def execute_actions(evt: Dict[str, Any], playbooks: List[Dict[str, Any]], notify
             elif act_type == "isolate_network":
                 isolate_network()
             elif act_type == "quarantine_file":
+    # Prefer explicit path, else event.path, else resolve from PID if present
                 fpath = action.get("path") or evt.get("data", {}).get("path")
+                if not fpath:
+                    pid = evt.get("data", {}).get("pid")
+                    if pid:
+                        try:
+                            fpath = psutil.Process(int(pid)).exe()
+                        except Exception:
+                            fpath = None
                 if fpath:
                     quarantine_file(fpath)
             elif act_type == "notify":
@@ -201,22 +217,88 @@ def isolate_network() -> None:
 
 
 def quarantine_file(path: str) -> None:
-    """Move a suspicious file to a quarantine folder in the user's home directory."""
+    """
+    Safely move a suspicious file into ...\testing\RansomwareQuarantine
+    and lock it down (non-executable extension, read-only, restricted ACL).
+    Also writes a small manifest.json with metadata.
+    """
     try:
         src = Path(path)
         if not src.exists():
             return
-        quarantine_dir = Path.home() / "RansomwareQuarantine"
-        quarantine_dir.mkdir(exist_ok=True)
-        dst = quarantine_dir / src.name
-        # If destination exists, append a timestamp to avoid clobbering
-        if dst.exists():
-            suffix = int(psutil.time.time())
-            dst = quarantine_dir / f"{src.stem}_{suffix}{src.suffix}"
-        src.rename(dst)
+
+        QUARANTINE_DIR.mkdir(parents=True, exist_ok=True)
+
+        # Hash first (while file is still in original location)
+        sha256 = hashlib.sha256()
+        try:
+            with open(src, "rb") as f:
+                for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                    sha256.update(chunk)
+            digest = sha256.hexdigest()
+        except Exception:
+            digest = None
+
+        # Create a per-item folder (prevents name collisions)
+        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        case_dir = QUARANTINE_DIR / f"{ts}_{(digest or 'nohash')[:8]}"
+        case_dir.mkdir(parents=True, exist_ok=True)
+
+        # Rename to a non-executable extension
+        dst = case_dir / (src.name + ".quarantined")
+
+        # Move (fast if same volume), else copy+delete
+        try:
+            src.rename(dst)
+        except Exception:
+            try:
+                shutil.copy2(str(src), str(dst))
+                try:
+                    os.remove(str(src))
+                except Exception:
+                    pass
+            except Exception:
+                return  # give up quietly to keep agent stable
+
+        # Make read-only (best-effort)
+        try:
+            os.chmod(dst, stat.S_IREAD)
+        except Exception:
+            pass
+
+        # Lock down ACLs: remove inheritance, grant only Administrators & SYSTEM
+        try:
+            subprocess.run(["icacls", str(dst), "/inheritance:r"],
+                           check=False, capture_output=True)
+            subprocess.run(["icacls", str(dst), "/grant:r",
+                            "Administrators:F", "SYSTEM:F"],
+                           check=False, capture_output=True)
+            # Remove broad groups if present
+            subprocess.run(["icacls", str(dst), "/remove:g", "Users", "Everyone"],
+                           check=False, capture_output=True)
+        except Exception:
+            pass
+
+        # Write manifest for auditing/restore
+        try:
+            manifest = {
+                "original_path": str(path),
+                "quarantined_path": str(dst),
+                "size_bytes": dst.stat().st_size if dst.exists() else None,
+                "sha256": digest,
+                "quarantined_at": ts,
+            }
+            (case_dir / "manifest.json").write_text(
+                json.dumps(manifest, indent=2), encoding="utf-8"
+            )
+        except Exception:
+            pass
+
     except Exception:
-        # Suppress any error to maintain agent stability
+        # Never crash the agent because of quarantine errors
         pass
+
+
 
 
 def default_notify_callback(evt: Dict[str, Any], pb_name: str) -> None:
