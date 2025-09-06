@@ -20,7 +20,9 @@ from response import (
     match_playbooks,
     execute_actions,
     default_notify_callback,
+    quarantine_file,   # <-- add this
 )
+
 
 def rpath(rel: str) -> str:
     """
@@ -169,16 +171,75 @@ def monitor_resources():
         time.sleep(5)
 
 class FSHandler(FileSystemEventHandler):
-    def on_created(self, e): self._emit(e, "create")
-    def on_modified(self, e): self._emit(e, "write")
-    def _emit(self, e, subtype):
-        if e.is_directory: return
+    def on_created(self, e):
+        self._emit(e, "create", path=e.src_path)
+
+    def on_modified(self, e):
+        self._emit(e, "write", path=e.src_path)
+
+    def on_moved(self, e):
+        # catch renames; look at the DESTINATION path
+        if e.is_directory:
+            return
+        self._emit(e, "rename", path=e.dest_path, src=e.src_path)
+
+    def _emit(self, e, subtype, path=None, src=None):
+        # Ignore directory events
+        if e.is_directory:
+            return
+
+        # Path we evaluate (dest for renames)
+        p = path or e.src_path
+
+        # Avoid feedback loops: ignore anything under the quarantine directory
+        try:
+            from response import QUARANTINE_DIR
+            if str(Path(p)).lower().startswith(str(QUARANTINE_DIR).lower()):
+                return
+        except Exception:
+            pass
+
+        # Burst counter and extension
         count = BURST.hit()
-        ext = os.path.splitext(e.src_path)[1].lower()
+        ext = os.path.splitext(p)[1].lower()
+
+        # Base severity
         sev = 1
-        if ext in set(CFG["agent"]["ext_watchlist"]): sev = max(sev,2)
-        if count > CFG["agent"]["file_burst_threshold_per_sec"]: sev = max(sev,3)
-        EVENTS.put(ev_base("file", subtype, {"path":e.src_path,"ext":ext,"rate":count}, sev))
+        try:
+            watch_exts = set(x.lower() for x in CFG["agent"].get("ext_watchlist", []))
+        except Exception:
+            watch_exts = set()
+
+        # High severity for watch-listed ransomware extensions
+        if ext in watch_exts:
+            sev = max(sev, 3)
+
+        # High severity when file churn exceeds threshold
+        if count > CFG["agent"].get("file_burst_threshold_per_sec", 120):
+            sev = max(sev, 3)
+
+        # --- Step 4: early bump for CREATE/RENAME inside quarantine_on_create paths ---
+        try:
+            qcfg = (CFG.get("agent") or {}).get("quarantine_on_create") or {}
+            if qcfg.get("enable") and subtype in ("create", "rename"):
+                exts  = set(x.lower() for x in (qcfg.get("exts") or []))
+                bases = [b.lower() for b in (qcfg.get("paths") or [])]
+                plower = str(p).lower()
+                ext_ok  = (not exts) or (ext in exts)
+                path_ok = (not bases) or any(plower.startswith(base) for base in bases)
+                if ext_ok and path_ok:
+                    sev = max(sev, 3)
+        except Exception:
+            pass
+        # --- end Step 4 ---
+
+        # Build event payload (include src for rename)
+        data = {"path": p, "ext": ext, "rate": count}
+        if src and subtype == "rename":
+            data["src"] = src
+
+        EVENTS.put(ev_base("file", subtype, data, sev))
+
 
 def start_file_watch():
     obs = Observer()
@@ -277,6 +338,57 @@ def dispatcher():
                 score += 20
             evt["signals"]["score"] = min(100, score)
             if score >= 70: evt["severity"] = max(evt["severity"], 3)
+                    # --- Quarantine on CREATE/RENAME/WRITE inside configured paths (no playbook needed) ---
+            try:
+                qcfg  = (CFG.get("agent") or {}).get("quarantine_on_create") or {}
+                enable = bool(qcfg.get("enable"))
+                if enable and evt.get("type") == "file" and evt.get("subtype") in ("create", "rename", "write"):
+                    data   = evt.get("data") or {}
+                    path   = (data.get("path") or "")
+                    ext    = (data.get("ext")  or "").lower()
+                    exts   = set(x.lower() for x in (qcfg.get("exts")  or []))
+                    bases  = [b.lower() for b in (qcfg.get("paths") or [])]
+
+                    if path:
+                        plower = path.lower()
+
+                        # Skip if already inside your quarantine folder (prevents loops)
+                        try:
+                            from response import QUARANTINE_DIR
+                            if plower.startswith(str(QUARANTINE_DIR).lower()):
+                                raise StopIteration
+                        except Exception:
+                            pass
+
+                        # If extensions list is empty -> match all; else require membership
+                        ext_ok  = (not exts) or (ext in exts)
+                        path_ok = (not bases) or any(plower.startswith(base) for base in bases)
+
+                        if ext_ok and path_ok:
+                            # Ensure it shows up with MIN_SEVERITY filters
+                            evt["severity"] = max(evt.get("severity", 1), 3)
+                            quarantine_file(path)
+            except StopIteration:
+                pass
+            except Exception:
+                # Never let response actions crash the dispatcher
+                pass
+            # --- end quarantine-on-create ---
+
+            # --- Built-in quarantine for high-severity watched extensions (bypass playbooks) ---
+            try:
+                if evt.get("type") == "file" and evt.get("severity", 1) >= 3:
+                    data = evt.get("data") or {}
+                    path = data.get("path")
+                    ext  = (data.get("ext") or "").lower()
+                    watch_exts = set(x.lower() for x in CFG["agent"].get("ext_watchlist", []))
+                    if path and ext in watch_exts:
+                        quarantine_file(path)
+            except Exception:
+                # Never let response actions crash the dispatcher
+                pass
+            # --- end built-in quarantine ---
+
             # Execute SOAR playbooks when applicable.  Any exceptions raised
             # during playbook matching or execution are swallowed to prevent
             # disruption of the dispatcher loop.
