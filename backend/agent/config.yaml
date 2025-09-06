@@ -2,14 +2,20 @@ agent:
   id: "RANSOMWARE-PROTECTOR"
   name: "Windows-Ransomware-Defense"
   watch_paths:
-    - "C:\\Users\\Public"
-    - "C:\\ProgramData"
+    - "C:\\Users\\sakindu\\Downloads\\testing\\"
   ext_watchlist: [".lockbit", ".conti", ".encrypted", ".ryk", ".lkr"]
-  file_burst_threshold_per_sec: 120
+  file_burst_threshold_per_sec: 100
   # CPU usage percentage threshold above which a process will be flagged
-  cpu_usage_threshold: 80
+  cpu_usage_threshold: 90
   # Disk write threshold (bytes/sec) above which a process will be flagged
-  io_write_threshold_bytes: 52428800  # 50 MB/s
+  io_write_threshold_bytes: 157286400  # 50 MB/s
+
+  quarantine_on_create:
+      enable: true
+      paths:
+        - "C:\\Users\\sakindu\\Downloads\\testing"
+      # File types to quarantine on drop (extend as needed)
+      exts: [".exe", ".dll", ".scr", ".js", ".vbs", ".ps1", ".hta", ".jar", ".bat", ".cmd"]
 
 outbound:
   mode: "https"   # we're using the FastAPI collector (app.py), no MQTT
