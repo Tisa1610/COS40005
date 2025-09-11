@@ -57,7 +57,9 @@ build_exe.bat
 - **PowerShell ScriptBlock** logs (Event ID 4104).
 - **Service installs / VSS delete** indicators in event text.
 
-Tune thresholds in `agent\config.yaml`.
+Tune thresholds in `agent\config.yaml`.  The agent watches this file and
+automatically restarts when changes are saved, so updates take effect
+immediately.
 
 ## Automated response and SOAR
 
@@ -96,6 +98,8 @@ This repository contains placeholder directories for future modules:
   components.
 
 When building the agent executable with `build_exe.bat`, the
-`config.yaml`, `playbooks/` directory and `response.py` are bundled
-alongside the binary so that custom configurations and playbooks are
-available at runtime.
+`playbooks/` directory and `response.py` are bundled inside the binary.
+`config.yaml` is copied next to the built executable so that it can be
+edited without rebuilding.  The running agent monitors this file and
+automatically restarts when changes are saved, enabling real‑time
+configuration updates.
