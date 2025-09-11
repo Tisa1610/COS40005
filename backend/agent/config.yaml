@@ -3,8 +3,9 @@ agent:
   name: "Windows-Ransomware-Defense"
   watch_paths:
     - "C:\\Users\\sakindu\\Downloads\\testing\\"
-  ext_watchlist: [".lockbit", ".conti", ".encrypted", ".ryk", ".lkr"]
+  ext_watchlist: [".lockbit", ".conti", ".encrypted", ".ryk", ".lkr", ".wnry", ".wncry", ".wcry"]
   file_burst_threshold_per_sec: 100
+  entropy_threshold: 7.5
   # CPU usage percentage threshold above which a process will be flagged
   cpu_usage_threshold: 90
   # Disk write threshold (bytes/sec) above which a process will be flagged

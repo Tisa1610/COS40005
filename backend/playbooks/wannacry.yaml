@@ -1,0 +1,17 @@
+# Playbook handling WannaCry ransomware indicators
+playbooks:
+  - name: "wannacry_containment"
+    description: |
+      Triggered when the agent detects indicators of the WannaCry ransomware
+      family such as known process names or encrypted file extensions.
+      The host will attempt to contain the threat by killing the offending
+      process, quarantining affected files and isolating the network.
+    triggers:
+      type: ransomware
+      subtype: wannacry
+      min_severity: 3
+    actions:
+      - type: kill_process
+      - type: quarantine_file
+      - type: isolate_network
+      - type: notify

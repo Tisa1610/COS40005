@@ -2,7 +2,8 @@ import os, json, time, hmac, hashlib, socket, threading, queue
 from datetime import datetime, timezone
 from pathlib import Path
 import sys
-import yaml, psutil
+import yaml, psutil, math
+from collections import Counter
 
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -132,6 +133,24 @@ class Burst:
 
 BURST = Burst()
 
+
+def calc_entropy(path: str, max_bytes: int = 65536) -> float:
+    """Return an approximate Shannon entropy for the beginning of ``path``.
+
+    Only the first ``max_bytes`` bytes are read to avoid heavy I/O.  If the
+    file cannot be read, ``0.0`` is returned.
+    """
+    try:
+        with open(path, "rb") as f:
+            data = f.read(max_bytes)
+        if not data:
+            return 0.0
+        freq = Counter(data)
+        length = len(data)
+        return -sum((c / length) * math.log2(c / length) for c in freq.values())
+    except Exception:
+        return 0.0
+
 # ---------- resource monitor (CPU/Disk) ----------
 def monitor_resources():
     """Periodically sample process CPU and disk write usage.
@@ -238,6 +257,11 @@ class FSHandler(FileSystemEventHandler):
         if src and subtype == "rename":
             data["src"] = src
 
+        # Approximate Shannon entropy for create/write events to spot
+        # encrypted payloads characteristic of ransomware.
+        if subtype in ("create", "write"):
+            data["entropy"] = round(calc_entropy(p), 2)
+
         EVENTS.put(ev_base("file", subtype, data, sev))
 
 
@@ -259,7 +283,8 @@ def watch_processes():
     try:
         c = wmi.WMI()
         watcher = c.watch_for(notification_type="Creation", wmi_class="Win32_Process")
-        suspicious = {"powershell.exe","wscript.exe","cscript.exe","cmd.exe","mshta.exe"}
+        suspicious = {"powershell.exe","wscript.exe","cscript.exe","cmd.exe","mshta.exe",
+                      "mssecsvc.exe","tasksche.exe","taskdl.exe","taskse.exe"}
         while not STOP.is_set():
             try:
                 p = watcher(timeout_ms=1000)
@@ -323,11 +348,19 @@ def dispatcher():
             score = 0
             if evt["type"] == "file" and evt["data"].get("rate", 0) >= CFG["agent"]["file_burst_threshold_per_sec"]:
                 score += 40
+            # Entropy-based detection of encrypted payloads
+            if evt["type"] == "file" and evt["data"].get("entropy", 0) >= CFG["agent"].get("entropy_threshold", 7.5):
+                score += 40
+                evt["signals"]["ioc"].append("high_entropy")
             if evt["type"] == "process" and evt["data"].get("name") in [
                 "powershell.exe",
                 "wscript.exe",
                 "cscript.exe",
                 "mshta.exe",
+                "mssecsvc.exe",
+                "tasksche.exe",
+                "taskdl.exe",
+                "taskse.exe",
             ]:
                 score += 30
             if evt["subtype"] in ["service_install", "vss_delete"]:
@@ -337,8 +370,20 @@ def dispatcher():
                 # high CPU/disk write events are considered early indicators of encryption or abuse
                 score += 20
             evt["signals"]["score"] = min(100, score)
-            if score >= 70: evt["severity"] = max(evt["severity"], 3)
-                    # --- Quarantine on CREATE/RENAME/WRITE inside configured paths (no playbook needed) ---
+            if score >= 70:
+                evt["severity"] = max(evt["severity"], 3)
+
+            # Dedicated detection of WannaCry-style indicators
+            indicator = None
+            if evt["type"] == "file" and evt["data"].get("ext") in {".wnry", ".wncry", ".wcry"}:
+                indicator = {"indicator": "file_extension", "path": evt["data"].get("path")}
+            if evt["type"] == "process" and evt["data"].get("name") in {"mssecsvc.exe", "tasksche.exe", "taskdl.exe", "taskse.exe"}:
+                indicator = {"indicator": "process", "name": evt["data"].get("name"), "pid": evt["data"].get("pid")}
+            if indicator:
+                wc_evt = ev_base("ransomware", "wannacry", indicator, 4)
+                EVENTS.put(wc_evt)
+
+            # --- Quarantine on CREATE/RENAME/WRITE inside configured paths (no playbook needed) ---
             try:
                 qcfg  = (CFG.get("agent") or {}).get("quarantine_on_create") or {}
                 enable = bool(qcfg.get("enable"))
