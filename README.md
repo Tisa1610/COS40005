@@ -19,6 +19,7 @@ This project contains two main components working together to detect ransomware-
 * 📤 Sends alert to SOAR system via HTTP POST
 * 🌐 Exposes `/alerts` API to view alert history
 * 🔍 Customizable directory monitoring using `watchdog`
+* 🧬 **Entropy analysis and WannaCry detection with automated containment playbooks**
 
 ### SOAR System (`airs_soar_server.py`)
 
