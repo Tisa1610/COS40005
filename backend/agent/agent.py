@@ -26,15 +26,33 @@ from response import (
 
 
 def rpath(rel: str) -> str:
-    """
-    Resolve a path that works both for normal Python and a PyInstaller-frozen EXE.
-    For bundled data (via --add-data), the files are under sys._MEIPASS.
+    """Return a path to bundled resource ``rel``.
+
+    When running under PyInstaller the temporary extraction directory lives in
+    ``sys._MEIPASS``.  For normal execution we resolve relative to the current
+    file's directory.  This helper is still used for bundled data such as
+    playbooks.
     """
     base = Path(getattr(sys, "_MEIPASS", Path(__file__).parent))
     return str(base / rel)
 
-# --- Load config next to agent.py / agent.exe (bundled by --add-data) ---
-CFG = yaml.safe_load(Path(rpath("config.yaml")).read_text())
+
+def config_path() -> Path:
+    """Return the location of ``config.yaml``.
+
+    The configuration should live alongside the running script or frozen
+    executable so that users can edit it without rebuilding the binary.  When
+    packaged with PyInstaller, ``sys.executable`` points to the compiled
+    executable which we use to resolve the path.
+    """
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).with_name("config.yaml")
+    return Path(__file__).with_name("config.yaml")
+
+
+# Load config from external file so it can be modified at runtime
+CFG_PATH = config_path()
+CFG = yaml.safe_load(CFG_PATH.read_text())
 HMAC_KEY = os.environ.get(CFG["security"]["hmac_key_env"], "dev-change-me").encode()
 
 # Load response playbooks once at startup.  Playbooks live under the
@@ -341,6 +359,24 @@ def parse_emit(channel, xml):
 EVENTS = queue.Queue()
 STOP = threading.Event()
 
+
+def watch_config_and_restart():
+    """Monitor the config file for changes and restart the agent when modified."""
+    try:
+        last = CFG_PATH.stat().st_mtime
+    except FileNotFoundError:
+        last = None
+    while not STOP.is_set():
+        try:
+            current = CFG_PATH.stat().st_mtime
+            if last is not None and current != last:
+                print("[info] config.yaml changed; restarting...")
+                os.execv(sys.executable, [sys.executable] + sys.argv)
+            last = current
+        except FileNotFoundError:
+            pass
+        time.sleep(1)
+
 def dispatcher():
     while not STOP.is_set():
         try:
@@ -460,6 +496,7 @@ def main():
         threading.Thread(target=tail_channel, args=("Microsoft-Windows-PowerShell/Operational", "*"), daemon=True),
         threading.Thread(target=monitor_resources, daemon=True),
         threading.Thread(target=dispatcher, daemon=True),
+        threading.Thread(target=watch_config_and_restart, daemon=True),
     ]
     for t in threads: t.start()
     try:
