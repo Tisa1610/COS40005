@@ -2,7 +2,8 @@ import os, json, time, hmac, hashlib, socket, threading, queue
 from datetime import datetime, timezone
 from pathlib import Path
 import sys
-import yaml, psutil
+import yaml, psutil, math
+from collections import Counter
 
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -25,15 +26,33 @@ from response import (
 
 
 def rpath(rel: str) -> str:
-    """
-    Resolve a path that works both for normal Python and a PyInstaller-frozen EXE.
-    For bundled data (via --add-data), the files are under sys._MEIPASS.
+    """Return a path to bundled resource ``rel``.
+
+    When running under PyInstaller the temporary extraction directory lives in
+    ``sys._MEIPASS``.  For normal execution we resolve relative to the current
+    file's directory.  This helper is still used for bundled data such as
+    playbooks.
     """
     base = Path(getattr(sys, "_MEIPASS", Path(__file__).parent))
     return str(base / rel)
 
-# --- Load config next to agent.py / agent.exe (bundled by --add-data) ---
-CFG = yaml.safe_load(Path(rpath("config.yaml")).read_text())
+
+def config_path() -> Path:
+    """Return the location of ``config.yaml``.
+
+    The configuration should live alongside the running script or frozen
+    executable so that users can edit it without rebuilding the binary.  When
+    packaged with PyInstaller, ``sys.executable`` points to the compiled
+    executable which we use to resolve the path.
+    """
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).with_name("config.yaml")
+    return Path(__file__).with_name("config.yaml")
+
+
+# Load config from external file so it can be modified at runtime
+CFG_PATH = config_path()
+CFG = yaml.safe_load(CFG_PATH.read_text())
 HMAC_KEY = os.environ.get(CFG["security"]["hmac_key_env"], "dev-change-me").encode()
 
 # Load response playbooks once at startup.  Playbooks live under the
@@ -131,6 +150,24 @@ class Burst:
             self.c+=1; return self.c
 
 BURST = Burst()
+
+
+def calc_entropy(path: str, max_bytes: int = 65536) -> float:
+    """Return an approximate Shannon entropy for the beginning of ``path``.
+
+    Only the first ``max_bytes`` bytes are read to avoid heavy I/O.  If the
+    file cannot be read, ``0.0`` is returned.
+    """
+    try:
+        with open(path, "rb") as f:
+            data = f.read(max_bytes)
+        if not data:
+            return 0.0
+        freq = Counter(data)
+        length = len(data)
+        return -sum((c / length) * math.log2(c / length) for c in freq.values())
+    except Exception:
+        return 0.0
 
 # ---------- resource monitor (CPU/Disk) ----------
 def monitor_resources():
@@ -238,6 +275,11 @@ class FSHandler(FileSystemEventHandler):
         if src and subtype == "rename":
             data["src"] = src
 
+        # Approximate Shannon entropy for create/write events to spot
+        # encrypted payloads characteristic of ransomware.
+        if subtype in ("create", "write"):
+            data["entropy"] = round(calc_entropy(p), 2)
+
         EVENTS.put(ev_base("file", subtype, data, sev))
 
 
@@ -259,7 +301,8 @@ def watch_processes():
     try:
         c = wmi.WMI()
         watcher = c.watch_for(notification_type="Creation", wmi_class="Win32_Process")
-        suspicious = {"powershell.exe","wscript.exe","cscript.exe","cmd.exe","mshta.exe"}
+        suspicious = {"powershell.exe","wscript.exe","cscript.exe","cmd.exe","mshta.exe",
+                      "mssecsvc.exe","tasksche.exe","taskdl.exe","taskse.exe"}
         while not STOP.is_set():
             try:
                 p = watcher(timeout_ms=1000)
@@ -316,6 +359,24 @@ def parse_emit(channel, xml):
 EVENTS = queue.Queue()
 STOP = threading.Event()
 
+
+def watch_config_and_restart():
+    """Monitor the config file for changes and restart the agent when modified."""
+    try:
+        last = CFG_PATH.stat().st_mtime
+    except FileNotFoundError:
+        last = None
+    while not STOP.is_set():
+        try:
+            current = CFG_PATH.stat().st_mtime
+            if last is not None and current != last:
+                print("[info] config.yaml changed; restarting...")
+                os.execv(sys.executable, [sys.executable] + sys.argv)
+            last = current
+        except FileNotFoundError:
+            pass
+        time.sleep(1)
+
 def dispatcher():
     while not STOP.is_set():
         try:
@@ -323,11 +384,19 @@ def dispatcher():
             score = 0
             if evt["type"] == "file" and evt["data"].get("rate", 0) >= CFG["agent"]["file_burst_threshold_per_sec"]:
                 score += 40
+            # Entropy-based detection of encrypted payloads
+            if evt["type"] == "file" and evt["data"].get("entropy", 0) >= CFG["agent"].get("entropy_threshold", 7.5):
+                score += 40
+                evt["signals"]["ioc"].append("high_entropy")
             if evt["type"] == "process" and evt["data"].get("name") in [
                 "powershell.exe",
                 "wscript.exe",
                 "cscript.exe",
                 "mshta.exe",
+                "mssecsvc.exe",
+                "tasksche.exe",
+                "taskdl.exe",
+                "taskse.exe",
             ]:
                 score += 30
             if evt["subtype"] in ["service_install", "vss_delete"]:
@@ -337,8 +406,20 @@ def dispatcher():
                 # high CPU/disk write events are considered early indicators of encryption or abuse
                 score += 20
             evt["signals"]["score"] = min(100, score)
-            if score >= 70: evt["severity"] = max(evt["severity"], 3)
-                    # --- Quarantine on CREATE/RENAME/WRITE inside configured paths (no playbook needed) ---
+            if score >= 70:
+                evt["severity"] = max(evt["severity"], 3)
+
+            # Dedicated detection of WannaCry-style indicators
+            indicator = None
+            if evt["type"] == "file" and evt["data"].get("ext") in {".wnry", ".wncry", ".wcry"}:
+                indicator = {"indicator": "file_extension", "path": evt["data"].get("path")}
+            if evt["type"] == "process" and evt["data"].get("name") in {"mssecsvc.exe", "tasksche.exe", "taskdl.exe", "taskse.exe"}:
+                indicator = {"indicator": "process", "name": evt["data"].get("name"), "pid": evt["data"].get("pid")}
+            if indicator:
+                wc_evt = ev_base("ransomware", "wannacry", indicator, 4)
+                EVENTS.put(wc_evt)
+
+            # --- Quarantine on CREATE/RENAME/WRITE inside configured paths (no playbook needed) ---
             try:
                 qcfg  = (CFG.get("agent") or {}).get("quarantine_on_create") or {}
                 enable = bool(qcfg.get("enable"))
@@ -415,6 +496,7 @@ def main():
         threading.Thread(target=tail_channel, args=("Microsoft-Windows-PowerShell/Operational", "*"), daemon=True),
         threading.Thread(target=monitor_resources, daemon=True),
         threading.Thread(target=dispatcher, daemon=True),
+        threading.Thread(target=watch_config_and_restart, daemon=True),
     ]
     for t in threads: t.start()
     try:
