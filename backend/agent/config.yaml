@@ -1,31 +1,54 @@
 agent:
   id: "RANSOMWARE-PROTECTOR"
   name: "Windows-Ransomware-Defense"
-  watch_paths:
-    - "C:\\Users\\sakindu\\Downloads\\testing\\"
-  ext_watchlist: [".lockbit", ".conti", ".encrypted", ".ryk", ".lkr", ".wnry", ".wncry", ".wcry"]
-  file_burst_threshold_per_sec: 100
-  entropy_threshold: 7.5
-  # CPU usage percentage threshold above which a process will be flagged
-  cpu_usage_threshold: 90
-  # Disk write threshold (bytes/sec) above which a process will be flagged
-  io_write_threshold_bytes: 157286400  # 50 MB/s
 
+  # Monitor realistic system locations + a local test folder
+  watch_paths:
+    - "C:\\Users\\Public"
+    - "C:\\ProgramData"
+    - "C:\\Users\\sakindu\\Downloads\\testing\\"
+
+  # Expanded ransomware extension watchlist
+  ext_watchlist:
+    - ".lockbit"
+    - ".conti"
+    - ".encrypted"
+    - ".ryk"
+    - ".lkr"
+    - ".wnry"
+    - ".wncry"
+    - ".wcry"
+
+  # Tuned thresholds (balanced sensitivity)
+  file_burst_threshold_per_sec: 100        # more sensitive to rapid file ops
+  entropy_threshold: 7.5                   # keep for encrypted-content heuristics
+  cpu_usage_threshold: 85                  # warn sooner without being noisy
+  io_write_threshold_bytes: 104857600      # 100 MB/s (balanced vs 50/150)
+
+  # Optional containment: quarantine risky executables on drop in watched paths
   quarantine_on_create:
-      enable: true
-      paths:
-        - "C:\\Users\\sakindu\\Downloads\\testing"
-      # File types to quarantine on drop (extend as needed)
-      exts: [".exe", ".dll", ".scr", ".js", ".vbs", ".ps1", ".hta", ".jar", ".bat", ".cmd"]
+    enable: true
+    paths:
+      - "C:\\Users\\Public"
+      - "C:\\ProgramData"
+    exts:
+      - ".exe"
+      - ".dll"
+      - ".scr"
+      - ".js"
+      - ".vbs"
+      - ".ps1"
+      - ".hta"
+      - ".jar"
+      - ".bat"
+      - ".cmd"
 
 outbound:
-  mode: "https"   # we're using the FastAPI collector (app.py), no MQTT
+  mode: "https"   # UI + backend expect HTTPS collector mode
   https:
-    url: "http://127.0.0.1:8000/ingest"  # plain HTTP for local testing
-    cafile: ""                           # leave blank since it's HTTP (no TLS)
-
-  # keeping mqtt section for later if you want to switch back
-  mqtt:
+    url: "http://127.0.0.1:8000/ingest"   # must end with /ingest (your backend check)
+    cafile: ""                            # blank for local HTTP
+  mqtt:                                    # kept for future use; harmless to keep
     host: "localhost"
     port: 8883
     username: "rtm_agent"
