@@ -2,13 +2,12 @@ agent:
   id: "RANSOMWARE-PROTECTOR"
   name: "Windows-Ransomware-Defense"
 
-  # Monitor realistic system locations + a local test folder
+  # Monitored system locations (realistic + test folder)
   watch_paths:
     - "C:\\Users\\Public"
     - "C:\\ProgramData"
-    - "C:\\Users\\sakindu\\Downloads\\testing\\"
-
-  # Expanded ransomware extension watchlist
+    - "C:\\Temp"
+  # Common ransomware extension watchlist
   ext_watchlist:
     - ".lockbit"
     - ".conti"
@@ -19,13 +18,13 @@ agent:
     - ".wncry"
     - ".wcry"
 
-  # Tuned thresholds (balanced sensitivity)
-  file_burst_threshold_per_sec: 100        # more sensitive to rapid file ops
-  entropy_threshold: 7.5                   # keep for encrypted-content heuristics
-  cpu_usage_threshold: 85                  # warn sooner without being noisy
-  io_write_threshold_bytes: 104857600      # 100 MB/s (balanced vs 50/150)
+  # Detection thresholds
+  file_burst_threshold_per_sec: 100          # triggers if >100 file ops/sec
+  entropy_threshold: 7.5                     # heuristic for encrypted data
+  cpu_usage_threshold: 85                    # % CPU threshold
+  io_write_threshold_bytes: 104857600        # 100 MB/s disk write
 
-  # Optional containment: quarantine risky executables on drop in watched paths
+  # Containment: quarantine suspicious executables dropped in watched paths
   quarantine_on_create:
     enable: true
     paths:
@@ -44,11 +43,11 @@ agent:
       - ".cmd"
 
 outbound:
-  mode: "https"   # UI + backend expect HTTPS collector mode
+  mode: "https"                             # use HTTPS collector (FastAPI backend)
   https:
-    url: "http://127.0.0.1:8000/ingest"   # must end with /ingest (your backend check)
-    cafile: ""                            # blank for local HTTP
-  mqtt:                                    # kept for future use; harmless to keep
+    url: "http://127.0.0.1:8000/ingest"     # must end with /ingest
+    cafile: ""                              # blank = no TLS for local testing
+  mqtt:                                     # retained for future use
     host: "localhost"
     port: 8883
     username: "rtm_agent"
@@ -56,4 +55,5 @@ outbound:
     cafile: "..\\deploy\\tls\\ca.crt"
 
 security:
+  # HMAC key is provided via environment variable for integrity of agent <-> backend
   hmac_key_env: "RTM_HMAC_KEY"
