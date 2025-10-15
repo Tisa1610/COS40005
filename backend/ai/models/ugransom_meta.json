@@ -1,0 +1,11 @@
+{
+  "feature_names": [
+    "Time",
+    "Clusters",
+    "BTC",
+    "USD",
+    "Netflow_Bytes",
+    "Port"
+  ],
+  "label_mean": 0.0
+}

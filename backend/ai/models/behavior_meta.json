@@ -1,0 +1,13 @@
+{
+  "feature_names": [
+    "cpu",
+    "file_rate",
+    "net_usage",
+    "proc_change",
+    "avg_entropy",
+    "ext_anomaly",
+    "reg_mod",
+    "thread_rate"
+  ],
+  "label_mean": 0.3333333333333333
+}
