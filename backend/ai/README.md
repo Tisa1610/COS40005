@@ -232,23 +232,6 @@ For PE scoring, `src/pe_feature_extractor.py` ensures the extracted dictionary i
 
 ---
 
-## Roadmap / TODOs
-
-- [ ] Fill in the `...` sections in **`monitor.py`** and **`data_collector.py`** (logic for deriving each behavior feature and model fusion).  
-- [ ] Add persistence/hardening (service install, logging to file, rotating logs).  
-- [ ] Implement **response actions** (quarantine file, kill suspected process, notify webhook/SOAR).  
-- [ ] Provide a sample **config file** for thresholds and paths.  
-- [ ] Add unit tests and a minimal CI workflow.  
-- [ ] Package as a single CLI (`python -m ransomware_detector ...`) or a Windows service.  
-
----
-
-## License
-
-No explicit license file was found in the archive. If you plan to publish, choose and add a LICENSE (e.g., MIT/Apache‑2.0).
-
----
-
 ### Appendix: Current Artifacts Detected
 
 This README was generated after inspecting the following files in your upload:
