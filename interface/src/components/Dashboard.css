@@ -2,7 +2,6 @@
    Dashboard.css (final)
    ============================ */
 
-/* Layout */
 .dash-wrap {
   display: flex;
   background: #f6f7fb;
@@ -30,16 +29,11 @@
   font-weight: 800;
   margin: 0 0 6px;
 }
-.dash-sub {
-  margin: 0;
-  color: #475569;
-}
+.dash-sub { margin: 0; color: #475569; }
 
 .right-actions { display: flex; gap: 10px; }
 
-/* ----------------------------
-   Buttons (shared)
-   ---------------------------- */
+/* Buttons */
 .btn,
 a.btn {
   border: 0;
@@ -57,62 +51,31 @@ a.btn {
   box-sizing: border-box;
 }
 
-/* Primary = blue with white text */
 .btn.primary,
-a.btn.primary {
-  background: #2563eb;
-  color: #fff;
-}
+a.btn.primary { background: #2563eb; color: #fff; }
 .btn.primary:hover,
-a.btn.primary:hover {
-  background: #1d4ed8;             /* darker blue, not black */
-}
+a.btn.primary:hover { background: #1d4ed8; }
 .btn.primary:active,
-a.btn.primary:active {
-  transform: translateY(1px);
-}
+a.btn.primary:active { transform: translateY(1px); }
 .btn.primary:focus-visible,
-a.btn.primary:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(37,99,235,.35);
-}
+a.btn.primary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(37,99,235,.35); }
 
-/* Ghost (your “blue buttons” for Open Backups / Open Logs / Sign up) */
 .btn.ghost,
-a.btn.ghost {
-  background: #2563eb;             /* blue base */
-  color: #ffffff;                   /* white text */
-}
+a.btn.ghost { background: #2563eb; color: #ffffff; }
 .btn.ghost:hover,
-a.btn.ghost:hover {
-  background: #1e3a8a;             /* deep blue hover (no black) */
-  color: #ffffff;
-}
+a.btn.ghost:hover { background: #1e3a8a; color: #ffffff; }
 .btn.ghost:active,
-a.btn.ghost:active {
-  transform: translateY(1px);
-}
+a.btn.ghost:active { transform: translateY(1px); }
 .btn.ghost:focus-visible,
-a.btn.ghost:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(30,58,138,.35);
-}
+a.btn.ghost:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(30,58,138,.35); }
 
-/* Neutral buttons (if used) */
 .btn:hover,
-a.btn:hover {
-  background: #d1d5db;
-}
+a.btn:hover { background: #d1d5db; }
 .btn:active,
-a.btn:active {
-  transform: translateY(1px);
-}
+a.btn:active { transform: translateY(1px); }
 
-/* Full-width helper */
 .btn.block,
-a.btn.block {
-  width: 100%;
-}
+a.btn.block { width: 100%; }
 
 /* Status strip */
 .status-strip {
@@ -167,11 +130,7 @@ a.btn.block {
   box-shadow: 0 6px 18px rgba(2,6,23,.05);
   box-sizing: border-box;
 }
-.card-title {
-  margin: 0 0 12px;
-  font-size: 16px;
-  font-weight: 800;
-}
+.card-title { margin: 0 0 12px; font-size: 16px; font-weight: 800; }
 
 .grid-2 {
   display: grid;
@@ -208,9 +167,9 @@ a.btn.block {
 .qa-title { font-weight: 800; }
 .qa-sub { color: #64748b; font-size: 13px; }
 
-/* Alerts preview */
+/* Alerts preview (match Compliance palette: WARNING red-ish, ERROR orange-ish) */
 .alert-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-.alert-list li { display: grid; grid-template-columns: 90px 160px 1fr; gap: 10px; align-items: start; }
+.alert-list li { display: grid; grid-template-columns: 90px 180px 1fr; gap: 10px; align-items: start; }
 .badge {
   display: inline-block;
   padding: 2px 8px;
@@ -218,21 +177,18 @@ a.btn.block {
   font-weight: 800;
   font-size: 12px;
 }
-.badge.info    { background: #e0f2fe; color: #075985; }
-.badge.warning { background: #fff7ed; color: #9a3412; }
-.badge.error   { background: #fee2e2; color: #991b1b; }
-.badge.critical{ background: #fecaca; color: #7f1d1d; }
+.badge.info     { background: #e0f2fe; color: #075985; }
+.badge.warning  { background: #fee2e2; color: #991b1b; }   /* red */
+.badge.error    { background: #fff7ed; color: #9a3412; }   /* orange */
+.badge.critical { background: #fecaca; color: #7f1d1d; }
 .ts  { color:#475569; font-size: 12px; }
 .msg { color:#0f172a; }
 
+/* Actions row */
 .card-actions { margin-top: 12px; display:flex; gap:10px; }
 
 /* Mini cards */
-.card.mini {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
+.card.mini { display: flex; flex-direction: column; gap: 10px; }
 .card.mini .mini-row {
   display: grid;
   grid-template-columns: 28px 1fr;
@@ -245,20 +201,12 @@ a.btn.block {
 .mini-value { font-weight: 800; }
 .mini-note  { color:#64748b; margin: 4px 0 6px; }
 
-/* Ensure the action buttons fit neatly in the card */
-.card.mini .card-actions {
-  margin-top: 6px;
-  display: flex;
-  gap: 10px;
-}
+.card.mini .card-actions { margin-top: 6px; display: flex; gap: 10px; }
 .row-gap { display: grid; gap: 10px; }
 .row-gap .btn,
 .card.mini .card-actions .btn,
 .row-gap a.btn,
-.card.mini .card-actions a.btn {
-  width: 100%;                     /* keep buttons inside the card */
-  box-sizing: border-box;
-}
+.card.mini .card-actions a.btn { width: 100%; box-sizing: border-box; }
 
 /* Empty state */
 .empty { color:#64748b; }
