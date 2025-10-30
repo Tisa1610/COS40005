@@ -1,12 +1,85 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
-} from 'recharts';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import './DataCollection.css';
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import "./DataCollection.css";
 
-const API_BASE = process.env.REACT_APP_API_BASE || "http://127.0.0.1:8000";
+const API_BASE = (process.env.REACT_APP_API_BASE || "http://127.0.0.1:8000").replace(
+  /\/$/,
+  ""
+);
+
+/* -------------------- Shared-ish logic (mirrors Compliance Logs) -------------------- */
+function getLevel(ev = {}) {
+  const explicit = (ev.level || "").toString().toUpperCase();
+  if (["INFO", "WARNING", "ERROR", "CRITICAL"].includes(explicit)) return explicit;
+
+  const sev = Number(ev.severity || ev.sev || 0);
+  let score = Number(ev.score || 0);
+  if (!score) score = Number(ev.signals?.score || 0);
+  const subtype = (ev.subtype || "").toLowerCase();
+  const etype = (ev.type || "").toLowerCase();
+
+  if (sev <= 1 && score < 20) return "INFO";
+  if (etype === "resource" || subtype.includes("cpu") || subtype.includes("disk"))
+    return "ERROR"; // suspicious system/resource
+  if (
+    score >= 70 ||
+    sev >= 3 ||
+    subtype.includes("service_install") ||
+    subtype.includes("vss_delete")
+  )
+    return "WARNING"; // strong ransomware indicators
+
+  return sev >= 2 ? "ERROR" : "INFO";
+}
+
+function buildMessage(a = {}) {
+  // Prefer any explicit message fields, otherwise synthesize something readable
+  const first =
+    a.message ||
+    a.msg ||
+    a.text ||
+    a.data?.message ||
+    a.data?.msg ||
+    a.description;
+
+  if (first && String(first).trim()) return String(first);
+
+  const name = a.name || "Windows-Ransomware-Defense";
+  const type = a.type || "event";
+  const sub = a.subtype || "log";
+  const sev = a.severity ?? a.sev ?? 0;
+  const score = a.score ?? a.signals?.score ?? 0;
+  return `${name}: ${type}/${sub} (sev=${sev}, score=${score})`;
+}
+
+/** Normalize any backend alert into a consistent shape for this page */
+function normalizeAlert(a = {}) {
+  const ts = a.timestamp || a.time || a.when || a.created_at || a.date || a.dt || "";
+  const level = getLevel(a);
+  const message = buildMessage(a);
+  const source = a.source || a.host?.name || a.host?.id || a.origin || a.name || "agent";
+  return { timestamp: ts, level, message, source };
+}
+
+function fmtTime(t) {
+  try {
+    const d = new Date(t);
+    if (!isNaN(d)) return d.toLocaleString();
+  } catch {}
+  return String(t ?? "—");
+}
+/* ----------------------------------------------------------------------------------- */
 
 function DataCollection() {
   const [metrics, setMetrics] = useState(null);
@@ -29,7 +102,9 @@ function DataCollection() {
   useEffect(() => {
     const saved = localStorage.getItem("metricHistory");
     if (saved) {
-      try { setHistory(JSON.parse(saved)); } catch {}
+      try {
+        setHistory(JSON.parse(saved));
+      } catch {}
     }
   }, []);
 
@@ -66,7 +141,11 @@ function DataCollection() {
         if (!paused) {
           setHistory((prev) => [
             ...prev.slice(-59),
-            { time: new Date().toLocaleTimeString(), cpu: data.cpu_usage, ram: data.ram_usage }
+            {
+              time: new Date().toLocaleTimeString(),
+              cpu: data.cpu_usage,
+              ram: data.ram_usage,
+            },
           ]);
         }
         setError(null);
@@ -81,9 +160,15 @@ function DataCollection() {
         if (!res.ok) throw new Error(`alerts ${res.status}`);
         const data = await res.json();
         if (!alive) return;
-        setAlerts(Array.isArray(data) ? data.slice(-500) : []);
+
+        // normalize + newest first + keep last 500
+        const norm = (Array.isArray(data) ? data : []).map(normalizeAlert);
+        norm.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        setAlerts(norm.slice(0, 500));
         setLastAlertsAt(new Date());
-      } catch {}
+      } catch {
+        /* keep previous alerts on transient failures */
+      }
     };
 
     pingHealth();
@@ -109,18 +194,27 @@ function DataCollection() {
       const levelOk = levelFilter === "ALL" || a.level === levelFilter;
       if (!levelOk) return false;
       if (!q) return true;
-      return (a.message || "").toLowerCase().includes(q) || (a.timestamp || "").toLowerCase().includes(q);
+      return (
+        (a.message || "").toLowerCase().includes(q) ||
+        (String(a.timestamp) || "").toLowerCase().includes(q) ||
+        (a.source || "").toLowerCase().includes(q)
+      );
     });
   }, [alerts, levelFilter, query]);
 
   // CSV exports
   const exportAlertsToCSV = () => {
     if (!visibleAlerts.length) return;
-    const headers = ["Timestamp,Level,Message"];
-    const rows = visibleAlerts.map(
-      (a) => `${a.timestamp},${a.level},"${(a.message || "").replace(/"/g, '""')}"`
+    const headers = ["Timestamp", "Level", "Message", "Source"];
+    const rows = visibleAlerts.map((a) => [
+      fmtTime(a.timestamp),
+      a.level,
+      (a.message || "").replace(/"/g, '""'),
+      a.source || "",
+    ]);
+    const csv = [headers.join(","), ...rows.map((r) => `${r[0]},${r[1]},"${r[2]}",${r[3]}`)].join(
+      "\n"
     );
-    const csv = [headers, ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -134,7 +228,7 @@ function DataCollection() {
 
   const exportMetricsToCSV = () => {
     if (!metrics) return;
-    const headers = ["CPU Usage (%)","RAM Usage (%)","Temperature (°C)","Packet Count"];
+    const headers = ["CPU Usage (%)", "RAM Usage (%)", "Temperature (°C)", "Packet Count"];
     const row = `${metrics.cpu_usage},${metrics.ram_usage},${metrics.temperature},${metrics.packet_count}`;
     const csv = [headers.join(","), row].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -172,7 +266,11 @@ function DataCollection() {
           <div className="status-right">
             <span className={`health-dot ${health}`} />
             <span className="health-text">
-              {health === "ok" ? "Backend online" : health === "fail" ? "Backend offline" : "—"}
+              {health === "ok"
+                ? "Backend online"
+                : health === "fail"
+                ? "Backend offline"
+                : "—"}
             </span>
           </div>
         </div>
@@ -252,8 +350,20 @@ function DataCollection() {
                 <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
                 <Tooltip formatter={(v, name) => [`${v}%`, name]} />
                 <Legend />
-                <Line type="monotone" dataKey="cpu" stroke="#facc15" name="CPU Usage (%)" dot={false} />
-                <Line type="monotone" dataKey="ram" stroke="#f87171" name="RAM Usage (%)" dot={false} />
+                <Line
+                  type="monotone"
+                  dataKey="cpu"
+                  stroke="#facc15"
+                  name="CPU Usage (%)"
+                  dot={false}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="ram"
+                  stroke="#f87171"
+                  name="RAM Usage (%)"
+                  dot={false}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -267,7 +377,10 @@ function DataCollection() {
             <div className="alert-actions">
               <label className="field">
                 <span className="label">Level</span>
-                <select value={levelFilter} onChange={(e) => setLevelFilter(e.target.value)}>
+                <select
+                  value={levelFilter}
+                  onChange={(e) => setLevelFilter(e.target.value)}
+                >
                   <option value="ALL">All</option>
                   <option value="INFO">Info</option>
                   <option value="WARNING">Warning</option>
@@ -312,10 +425,20 @@ function DataCollection() {
                   </tr>
                 ) : (
                   visibleAlerts.map((alert, i) => (
-                    <tr key={`${alert.timestamp}-${i}`} className={`row-${(alert.level || "").toLowerCase()}`}>
-                      <td>{alert.timestamp}</td>
-                      <td><span className={`badge badge-${(alert.level || "").toLowerCase()}`}>{alert.level}</span></td>
-                      <td>{alert.message}</td>
+                    <tr
+                      key={`${alert.timestamp}-${i}`}
+                      className={`row-${(alert.level || "").toLowerCase()}`}
+                    >
+                      <td>{fmtTime(alert.timestamp)}</td>
+                      <td>
+                        <span
+                          className={`badge badge-${(alert.level || "")
+                            .toLowerCase()}`}
+                        >
+                          {alert.level}
+                        </span>
+                      </td>
+                      <td style={{ fontFamily: "monospace" }}>{alert.message}</td>
                     </tr>
                   ))
                 )}

@@ -1,39 +1,39 @@
 /* src/components/ComplianceLogs.css */
 
-/* ===== Page layout (scoped; do NOT target .sidebar here) ===== */
-.compliance-wrap {
-  display: flex;
+/* ===== Base layout ===== */
+.page {
   background: #f6f7fb;
   min-height: 100vh;
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
   color: #0f172a;
-}
-
-.compliance-main {
-  flex: 1;
   padding: 36px 48px;
 }
 
 /* ===== Title ===== */
-.c-title {
+.page h1,
+.page h2 {
   font-size: 28px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-  margin: 0 0 18px 0;
+  font-weight: 800;
+  margin: 0 0 20px;
 }
 
-/* ===== Hero card ===== */
+/* ===== Hero (yellow compliance banner) ===== */
 .c-hero {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  display: flex;
   align-items: center;
-  gap: 18px;
-  background: #fff7c2;           /* soft yellow */
+  justify-content: space-between;
+  background: #fff7c2;
   border: 1px solid #fde68a;
-  border-radius: 14px;
-  padding: 22px 24px;
-  box-shadow: 0 6px 16px rgba(16, 24, 40, 0.06);
-  margin-bottom: 18px;
+  border-radius: 16px;
+  padding: 22px 26px;
+  box-shadow: 0 6px 18px rgba(16, 24, 40, 0.06);
+  margin-bottom: 24px;
+}
+
+.c-hero-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 
 .c-hero-icon {
@@ -41,77 +41,127 @@
   color: #eab308;
 }
 
-.c-hero-title {
-  margin: 0;
+.c-hero-text h3 {
   font-size: 22px;
   font-weight: 800;
+  margin: 0;
 }
 
-.c-hero-sub {
-  margin: 4px 0 0 0;
+.c-hero-text p {
   color: #334155;
-}
-
-.c-btn {
-  appearance: none;
-  border: 0;
-  border-radius: 10px;
-  padding: 10px 16px;
-  font-weight: 700;
-  cursor: pointer;
+  font-size: 15px;
+  margin: 4px 0 0 0;
 }
 
 .c-btn-primary {
-  background: #1e40af;
+  background: #2f49d1;
   color: #fff;
+  font-weight: 700;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
-.c-btn-primary:hover { background: #1d4ed8; }
+.c-btn-primary:hover {
+  background: #2540cf;
+  transform: translateY(-1px);
+}
 
-/* ===== Controls ===== */
+/* ===== Controls (filters, search, count) ===== */
 .c-controls {
   display: flex;
   gap: 12px;
   align-items: end;
-  margin: 12px 0 18px;
   flex-wrap: wrap;
+  margin-bottom: 16px;
 }
 
-.c-field { display: grid; gap: 6px; }
-.c-field span { font-size: 12px; color: #475569; }
-.c-field-grow { flex: 1; min-width: 260px; }
+.c-field {
+  display: grid;
+  gap: 6px;
+}
+.c-field span {
+  font-size: 12px;
+  color: #475569;
+}
+.c-field-grow {
+  flex: 1;
+  min-width: 260px;
+}
 
-.c-select, .c-input {
+.c-select,
+.c-input {
   border: 1px solid #e5e7eb;
   background: #ffffff;
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 14px;
   outline: none;
+  height: 40px;
 }
-.c-select:focus, .c-input:focus { border-color: #94a3b8; }
+.c-select:focus,
+.c-input:focus {
+  border-color: #94a3b8;
+}
 
-.c-count { margin-left: auto; color: #475569; font-weight: 600; }
+.c-count {
+  margin-left: auto;
+  color: #475569;
+  font-weight: 600;
+}
+
+/* ===== Charts Section ===== */
+.c-charts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.c-chart-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(16, 24, 40, 0.05);
+  padding: 10px;
+  height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
 /* ===== Table card ===== */
 .c-table-card {
   background: #fff;
   border: 1px solid #e5e7eb;
-  border-radius: 14px;
+  border-radius: 16px;
   box-shadow: 0 4px 12px rgba(16, 24, 40, 0.05);
+  overflow: hidden;
 }
 
-.c-loading, .c-empty {
-  padding: 20px;
-  color: #475569;
-}
-
+/* Scroll area */
 .c-table-scroll {
-  max-height: 56vh;
+  max-height: 60vh;
   overflow: auto;
-  border-radius: 14px;
+  border-radius: 16px;
 }
 
-/* table styling */
+/* Nice scrollbars */
+.c-table-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.c-table-scroll::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 10px;
+  border: 2px solid #fff;
+}
+.c-table-scroll::-webkit-scrollbar-thumb:hover {
+  background: #cfd8e3;
+}
+
+/* ===== Table styling ===== */
 .c-table {
   width: 100%;
   border-collapse: collapse;
@@ -125,66 +175,430 @@
   background: #f8fafc;
   color: #334155;
   text-align: left;
-  padding: 12px 14px;
+  padding: 12px 16px;
   border-bottom: 1px solid #e5e7eb;
   font-weight: 700;
 }
 
 .c-table tbody td {
-  padding: 12px 14px;
+  padding: 14px 16px;
   border-bottom: 1px solid #eef2f7;
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 .c-table tbody tr:nth-child(even) {
   background: #fbfcfe;
 }
 
-.c-col-time { white-space: nowrap; width: 1%; }
-.c-col-level { width: 1%; }
-.c-col-source { width: 1%; white-space: nowrap; color: #475569; }
+.c-table tbody tr:hover {
+  background: #f5f7ff;
+}
 
-/* level badges */
+/* columns */
+.c-col-time {
+  white-space: nowrap;
+  width: 1%;
+}
+.c-col-level {
+  width: 1%;
+}
+.c-col-source {
+  white-space: nowrap;
+  width: 1%;
+  color: #475569;
+}
+
+/* ===== Badges ===== */
+/* ===== Level badges ===== */
 .c-badge {
   display: inline-block;
-  padding: 2px 8px;
+  padding: 4px 10px;
   border-radius: 999px;
   font-weight: 800;
   font-size: 12px;
   letter-spacing: 0.3px;
 }
 
+/* 🟦 INFO (Blue) */
 .c-badge-info {
-  background: #e0f2fe;
-  color: #075985;
-}
-.c-badge-warning {
-  background: #fff7ed;
-  color: #9a3412;
-}
-.c-badge-error {
-  background: #fee2e2;
-  color: #991b1b;
+  background: #e0f2fe;   /* light blue bg */
+  color: #075985;        /* dark blue text */
 }
 
-/* ===== Highlight active nav item in the shared sidebar =====
-   Works whether your Sidebar uses <NavLink> (which adds .active)
-   or you toggle an `.active` class yourself. These rules only
-   change color/background; they do NOT affect sizes. */
-.sidebar .nav-item.active,
-.sidebar .nav-link.active {
+/* 🔴 WARNING (Red) */
+.c-badge-warning {
+  background: #fee2e2;   /* light red bg */
+  color: #991b1b;        /* deep red text */
+}
+
+/* 🟧 ERROR (Orange) */
+.c-badge-error {
+  background: #fff7ed;   /* light orange bg */
+  color: #9a3412;        /* burnt orange text */
+}
+
+
+/* ===== Responsive ===== */
+@media (max-width: 980px) {
+  .page {
+    padding: 24px;
+  }
+  .c-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .c-charts {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* === SCOPED THEME OVERRIDES === */
+.compliance-theme {
+  background: #f6f7fb;
+  min-height: 100vh;
+  padding: 36px 48px;
+  color: #0f172a;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+/* Title */
+.compliance-theme h1,
+.compliance-theme h2 {
+  font-weight: 800;
+  margin: 0 0 18px;
+}
+
+/* Yellow hero banner */
+.compliance-theme .hero,
+.compliance-theme .header-banner,
+.compliance-theme .banner,
+.compliance-theme .c-hero,
+.compliance-theme .top-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  background: #fff7c2 !important;
+  border: 1px solid #fde68a !important;
+  border-radius: 16px !important;
+  padding: 22px 26px !important;
+  box-shadow: 0 6px 18px rgba(16,24,40,.06);
+  margin-bottom: 20px;
+}
+
+.compliance-theme .hero h3,
+.compliance-theme .header-banner h3,
+.compliance-theme .banner h3 {
+  font-size: 22px;
+  margin: 0;
+}
+
+.compliance-theme .hero p,
+.compliance-theme .header-banner p,
+.compliance-theme .banner p {
+  margin: 4px 0 0;
+  color: #334155;
+}
+
+/* Primary button (Export) */
+.compliance-theme .btn-primary,
+.compliance-theme .export-btn,
+.compliance-theme button.primary {
   background: #2f49d1 !important;
   color: #fff !important;
-  border-radius: 12px;
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform .15s ease, background .15s ease;
 }
-.sidebar .nav-item.active .nav-icon,
-.sidebar .nav-link.active .nav-icon {
-  filter: brightness(100%);
+.compliance-theme .btn-primary:hover,
+.compliance-theme .export-btn:hover,
+.compliance-theme button.primary:hover {
+  background: #2540cf !important;
+  transform: translateY(-1px);
 }
 
-/* responsive tweaks */
-@media (max-width: 900px) {
-  .compliance-main { padding: 24px; }
-  .c-hero { grid-template-columns: auto 1fr; }
-  .c-hero .c-btn { grid-column: 1 / -1; justify-self: start; }
+/* Filters row */
+.compliance-theme .filters,
+.compliance-theme .controls,
+.compliance-theme .c-controls {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+  flex-wrap: wrap;
+  margin: 12px 0 16px;
 }
+.compliance-theme select,
+.compliance-theme input[type="text"],
+.compliance-theme .search-input {
+  border: 1px solid #e5e7eb !important;
+  background: #fff !important;
+  border-radius: 10px !important;
+  padding: 10px 12px !important;
+  font-size: 14px;
+  height: 40px;
+  outline: none;
+}
+.compliance-theme select:focus,
+.compliance-theme input[type="text"]:focus,
+.compliance-theme .search-input:focus {
+  border-color: #94a3b8 !important;
+}
+
+/* Cards (charts, tables) */
+.compliance-theme .card,
+.compliance-theme .panel,
+.compliance-theme .box {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(16,24,40,.05);
+}
+
+/* Chart containers */
+.compliance-theme .charts,
+.compliance-theme .charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+.compliance-theme .chart,
+.compliance-theme .chart-card {
+  height: 260px;
+  padding: 10px;
+}
+
+/* Table wrapper (nice scrolling) */
+.compliance-theme .table-wrap,
+.compliance-theme .table-card,
+.compliance-theme .logs {
+  overflow: hidden;
+  border-radius: 16px;
+}
+.compliance-theme .table-scroll,
+.compliance-theme .logs {
+  max-height: 60vh;
+  overflow: auto;
+}
+.compliance-theme .table-scroll::-webkit-scrollbar,
+.compliance-theme .logs::-webkit-scrollbar { width: 10px; height: 10px; }
+.compliance-theme .table-scroll::-webkit-scrollbar-thumb,
+.compliance-theme .logs::-webkit-scrollbar-thumb {
+  background: #e2e8f0; border-radius: 10px; border: 2px solid #fff;
+}
+.compliance-theme .table-scroll::-webkit-scrollbar-thumb:hover,
+.compliance-theme .logs::-webkit-scrollbar-thumb:hover { background: #cfd8e3; }
+
+/* Table styling */
+.compliance-theme table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  background: #fff;
+}
+.compliance-theme thead th {
+  position: sticky; top: 0; z-index: 1;
+  background: #f8fafc;
+  color: #334155;
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  font-weight: 700;
+}
+.compliance-theme tbody td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #eef2f7;
+  vertical-align: middle;
+}
+.compliance-theme tbody tr:nth-child(even) { background: #fbfcfe; }
+.compliance-theme tbody tr:hover { background: #f5f7ff; }
+
+/* Common column widths (applies even if your headers differ) */
+.compliance-theme th:nth-child(1), .compliance-theme td:nth-child(1) { white-space: nowrap; width: 1%; }
+.compliance-theme th:nth-child(2), .compliance-theme td:nth-child(2) { width: 1%; }
+.compliance-theme th:last-child,  .compliance-theme td:last-child  { white-space: nowrap; width: 1%; color:#475569; }
+
+/* Level badges */
+.compliance-theme .badge,
+.compliance-theme .tag {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: .3px;
+}
+.compliance-theme .badge-info { background:#e0f2fe; color:#075985; }
+.compliance-theme .badge-warning { background:#fff7ed; color:#9a3412; }
+.compliance-theme .badge-error { background:#fee2e2; color:#991b1b; }
+
+/* Responsive */
+@media (max-width: 980px) {
+  .compliance-theme { padding: 24px; }
+  .compliance-theme .charts,
+  .compliance-theme .charts-row { grid-template-columns: 1fr; }
+}
+
+/* === FIX LAYOUT OVERFLOW & RESPONSIVE IMPROVEMENTS === */
+
+/* Prevent page-wide horizontal scroll */
+.compliance-theme {
+  overflow-x: hidden;
+}
+
+/* Limit page width and center content */
+.compliance-container {
+  max-width: 1200px;         /* limit total width */
+  margin: 0 auto;            /* center horizontally */
+  padding: 0 16px;           /* add breathing space */
+  box-sizing: border-box;
+}
+
+/* Make cards never overflow horizontally */
+.card,
+.c-table-card,
+.c-chart-card {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Charts: make canvases responsive */
+.c-chart-card canvas {
+  max-width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+/* Collapse charts into a single column on smaller screens */
+@media (max-width: 1300px) {
+  .c-charts {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Table layout fixes */
+.c-table {
+  table-layout: fixed; /* keeps consistent column widths */
+  width: 100%;
+}
+
+/* Column width balancing */
+.c-col-time {
+  width: 180px;
+}
+.c-col-level {
+  width: 120px;
+}
+.c-col-source {
+  width: 200px;
+  white-space: nowrap;
+}
+
+/* Message column wrapping (prevents horizontal scrolling) */
+.c-table td:nth-child(3),
+.c-table th:nth-child(3) {
+  overflow-wrap: anywhere; /* modern wrapping for long tokens */
+  word-break: break-word;
+  white-space: normal;
+}
+
+/* Only vertical scroll for table */
+.c-table-scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 60vh;
+}
+
+/* Pagination section alignment */
+.c-table-card > div:last-child {
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+/* Smooth scrollbar */
+.c-table-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+.c-table-scroll::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 10px;
+}
+.c-table-scroll::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
+}
+
+/* Adjust spacing for narrow viewports */
+@media (max-width: 980px) {
+  .compliance-container {
+    padding: 0 12px;
+  }
+  .c-charts {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ————— TABLE LAYOUT FIXES ————— */
+
+/* Let the table size itself naturally and wrap text cleanly */
+.c-table {
+  table-layout: auto;           /* was: fixed (caused clipping) */
+  width: 100%;
+}
+
+/* Header: allow wrapping so titles aren’t cut off */
+.c-table thead th {
+  white-space: normal;          /* allow multi-line headers */
+}
+
+/* Set sensible column widths (no clipping) */
+.c-col-time { width: 220px; }   /* timestamp has room for date + AM/PM */
+.c-col-level { width: 140px; }  /* badge fits comfortably */
+.c-col-source { width: 220px; white-space: nowrap; }
+
+/* Message column should wrap rather than push layout sideways */
+.c-table td:nth-child(3),
+.c-table th:nth-child(3) {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}
+
+/* Make sure cells align nicely when wrapping */
+.c-table tbody td {
+  vertical-align: top;          /* keep multi-line cells aligned */
+}
+
+/* ————— SCROLL AREA & PAGINATION ————— */
+
+/* Only vertical scroll and leave room for the footer controls */
+.c-table-scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 60vh;
+  padding-bottom: 72px;         /* space so last rows aren’t hidden under footer */
+}
+
+/* Footer bar (Prev/Next) line and background */
+.c-table-card > div:last-child {
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+/* Smooth vertical scrollbar */
+.c-table-scroll::-webkit-scrollbar { width: 10px; }
+.c-table-scroll::-webkit-scrollbar-thumb {
+  background: #e2e8f0; border-radius: 10px;
+}
+.c-table-scroll::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+
+/* ————— PAGE-WIDE HORIZONTAL OVERFLOW ————— */
+
+/* Kill the horizontal scrollbar on the whole page */
+.compliance-theme { overflow-x: hidden; }
+
+/* Optional: keep content centered and within a nice max width */
+.compliance-container { max-width: 1200px; margin: 0 auto; padding: 0 16px; }

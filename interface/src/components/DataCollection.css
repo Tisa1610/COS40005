@@ -192,22 +192,20 @@
 .alert-table td {
   padding: 12px;
   border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+  word-break: break-word;
+  white-space: normal;
+  line-height: 1.25rem;
 }
 .alert-table tbody tr:nth-child(even) { background: #fcfdff; }
 
-/* per-level row tint */
+/* per-level row tint (match Compliance: WARNING red-ish, ERROR orange-ish) */
 .row-info { background: #f0f9ff; }
-.row-warning { background: #fff7ed; }
-.row-error { background: #fef2f2; }
+.row-warning { background: #fef2f2; }   /* light red */
+.row-error { background: #fff7ed; }     /* light orange */
 .row-critical { background: #fee2e2; }
 
-.empty-row td {
-  text-align: center;
-  color: #6b7280;
-  font-style: italic;
-}
-
-/* badges */
+/* badges (match Compliance palette) */
 .badge {
   display: inline-block;
   padding: .2rem .5rem;
@@ -220,15 +218,15 @@
   color: #075985;      /* dark cyan */
 }
 .badge-warning {
-  background: #fff7ed; /* light orange */
-  color: #9a3412;      /* dark orange */
+  background: #fee2e2; /* light red */
+  color: #991b1b;      /* deep red text */
 }
 .badge-error {
-  background: #fee2e2; /* light red */
-  color: #991b1b;      /* dark red */
+  background: #fff7ed; /* light orange */
+  color: #9a3412;      /* dark orange text */
 }
 .badge-critical {
-  background: #fecaca; /* deeper red */
+  background: #fecaca;
   color: #7f1d1d;
 }
 
